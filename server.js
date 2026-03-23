@@ -59,8 +59,8 @@ async function getLargestAccount(){
 }
 
 async function getLargestTransaction(){
-    const [results] = await connection.query(`SELECT MAX(accountID) from transactions`);
-    return results[0]["MAX(accountID)"]
+    const [results] = await connection.query(`SELECT MAX(transactionID) from transactions`);
+    return results[0]["MAX(transactionID)"]
 }
 
 async function createUser(user, password) {
@@ -85,27 +85,69 @@ async function createAccount(user,accountType) {
 
 //boolean
 async function verifyAccess(user,accountID){
-    // if(user.access===1){
-    //     return true;
-    // }
-    // else{
-    //     const [results] = await connection.query(`SELECT ownerID from accounts where accountID = ${accountID}`);
-    //     if(results[0]===user.id){
-    //         return true;
-    //     }
-    // }
-    const[results] = await connection.query(`SELECT * FROM accounts where accountID = ${accountID}`);
-    let id = results.accountID;
-
-    const[accounts] = await connection.query(`SELECT accounts.ownerID from accoun`)
+    if(user.access===1){
+        return true;
+    }
+    else{
+        const [results] = await connection.query(`SELECT ownerID from accounts where accountID = ${accountID}`);
+        if(results[0].ownerID === user.id){
+            return true;
+        }
+    }
+    return false;
 }
 
-getUser('Maya').then((results)=>{
-  console.log(results);
-  getAccounts(results).then((results)=>{
-      console.log(results);
-  })
-    verifyAccess(results,'31').then((results)=>{
+async function verifyBalance(amount,accountID){
+    const[results] = await connection.query(`SELECT balance FROM accounts where accountID = ${accountID}`);
+    if(results[0].balance >= amount){
+        return true;
+    }
+    return false;
+}
+
+async function transfer(user, fromID, toID, amount){
+    let accessFrom = await verifyAccess(user, fromID);
+    let accessTo = await verifyAccess(user, toID);
+    if(accessFrom === false || accessTo === false){
+        return "no access";
+    }
+    let fromBalance = await verifyBalance(amount, fromID);
+    if(fromBalance===false){
+        return "insufficient balance";
+    }
+    //create transaction
+    let transactionID = await getLargestTransaction()+1;
+    connection.query(`Insert into transactions values('${transactionID}', ${amount}, '${fromID}', '${toID}')`);
+    //update acc
+    const[fromBal] = await connection.query(`SELECT balance from accounts where accountID = ${fromID}`)
+    const[toBal] = await connection.query(`SELECT balance from accounts where accountID = ${toID}`)
+    connection.query(`UPDATE accounts SET balance= ${fromBal[0].balance - amount}  WHERE accountID = ${fromID}`);
+    connection.query(`UPDATE accounts SET balance= ${toBal[0].balance + amount}  WHERE accountID = ${toID}`);
+    return "success";
+
+}
+
+async function deposit(user, accountID, amount){
+    let access = await verifyAccess(user, accountID);
+    if(access === false){
+        return "no access";
+    }
+    let balanc
+}
+
+// verifyBalance(21, 31).then((results=>{
+//     console.log(results);
+// }))
+
+getUser('Kripa').then((results)=>{
+  // console.log(results);
+  // getAccounts(results).then((results)=>{
+  //     console.log(results);
+  // })
+  //   verifyAccess(results,'21').then((results)=>{
+  //       console.log(results);
+  //   })
+    transfer(results, 41, 42, 5).then((results)=>{
         console.log(results);
     })
 })
