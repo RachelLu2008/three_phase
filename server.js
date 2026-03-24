@@ -4,6 +4,7 @@ import bodyParser from 'body-parser';
 import mysql from 'mysql2/promise';
 import crypto from "node:crypto";
 import config from "./config.js";
+import {decrypt} from "dotenv";
 
 const connection = await mysql.createConnection({
     host: config.db.host,
@@ -128,29 +129,60 @@ async function transfer(user, fromID, toID, amount){
 }
 
 async function deposit(user, accountID, amount){
-    let access = await verifyAccess(user, accountID);
-    if(access === false){
-        return "no access";
+    if(user.access === 1){
+        //create transaction
+        let transactionID = await getLargestTransaction()+1;
+        connection.query(`Insert into transactions values('${transactionID}', ${amount}, null, '${accountID}')`);
+        //update acc
+        const[toBal] = await connection.query(`SELECT balance from accounts where accountID = ${accountID}`)
+        connection.query(`UPDATE accounts SET balance= ${toBal[0].balance + amount}  WHERE accountID = ${accountID}`);
+        return "success";
     }
-    let balanc
+    else{
+        return "no access"
+    }
 }
-//ff
+
+async function withdraw(user, accountID, amount){
+    if(user.access === 1){
+        let fromBalance = await verifyBalance(amount, accountID);
+        if(fromBalance===false){
+            return "insufficient balance";
+        }
+        //create transaction
+        let transactionID = await getLargestTransaction()+1;
+        connection.query(`Insert into transactions values('${transactionID}', ${amount}, '${accountID}', null)`);
+        //update acc
+        const[fromBal] = await connection.query(`SELECT balance from accounts where accountID = ${accountID}`)
+        connection.query(`UPDATE accounts SET balance= ${fromBal[0].balance - amount}  WHERE accountID = ${accountID}`);
+        return "success";
+    }
+    else{
+        return "no access"
+    }
+}
 // verifyBalance(21, 31).then((results=>{
 //     console.log(results);
 // }))
 
-getUser('Kripa').then((results)=>{
-  // console.log(results);
-  // getAccounts(results).then((results)=>{
-  //     console.log(results);
-  // })
-  //   verifyAccess(results,'21').then((results)=>{
-  //       console.log(results);
-  //   })
-    transfer(results, 41, 42, 5).then((results)=>{
-        console.log(results);
-    })
-})
+// getUser('Anya').then((results)=>{
+//   // console.log(results);
+//   // getAccounts(results).then((results)=>{
+//   //     console.log(results);
+//   // })
+//   //   verifyAccess(results,'21').then((results)=>{
+//   //       console.log(results);
+//   //   })
+//   //   transfer(results, 41, 42, 5).then((results)=>{
+//   //       console.log(results);
+//   //   })
+//   //   deposit(results,11,40).then((results)=>{
+//   //       console.log(results);
+//   //   })
+//   //   withdraw(results,31,40).then((results)=>{
+//   //       console.log(results);
+//   //   })
+// })
 
 // createUser('Mouse', 'Cheese').then(()=>{
 //     console.log('Creating user');
@@ -224,15 +256,51 @@ const urlSafeToBase64 = (urlSafeStr) => {
 
 
 
+app.get('/public_key', (req, res) => {
+    res.json(publicKey)
+})
 
 app.get("/accounts", (req,res)=>{
-    const{encryptedUsername, encryptedPassword} = req.body;
+    const{encryptedUsername, encryptedPassword} = req.query;
 
+    if(!encryptedUsername || !encryptedPassword){
+        return res.status(400).json({error: 'invalid login'});
+    }
+    const decryptUsername = decryptData(urlSafeToBase64(encryptedUsername));
+    const decryptPassword = decryptData(urlSafeToBase64(encryptedUsername));
+
+    getUser(decryptUsername).then((account)=>{
+        verifyPassword(decryptPassword, account.salt, account.hash, ()=>{
+            console.log('Accounts:', getAccounts(account));
+            res.status(200).json(getAccounts(account));
+        },
+            ()=>{
+            console.log("invalid password");
+            res.status(400).json('invalid password');
+        })
+
+    })
 })
 
 
-app.get("transactions", (req,res)=>{
+app.get("/transactions", (req,res)=>{
+    const{encryptedUsername, encryptedPassword, id} = req.query;
 
+    if(!encryptedUsername || !encryptedPassword){
+        return res.status(400).json({error: 'invalid login'});
+    }
+    const decryptUsername = decryptData(urlSafeToBase64(encryptedUsername));
+    const decryptPassword = decryptData(urlSafeToBase64(encryptedUsername));
+    const decryptID= decryptData(urlSafeToBase64(id));
+    getUser(decryptUsername).then((account)=>{
+        verifyPassword(decryptPassword, account.salt, account.hash, ()=>{
+            console.log('Transactions:', getTransactions(decryptID));
+            res.status(200).json(getTransactions(decryptID));
+        }),()=>{
+            console.log("invalid password");
+            res.status(400).json('invalid password');
+        }
+    })
 })
 
 
@@ -242,6 +310,26 @@ app.post("/login", (req,res)=>{
 
 
 app.post("/account", (req,res)=>{
+    const{encryptedUsername, encryptedPassword,accountType} = req.body;
+
+    if(!encryptedUsername || !encryptedPassword){
+        return res.status(400).json({error: 'invalid login'});
+    }
+    const decryptUsername = decryptData(urlSafeToBase64(encryptedUsername));
+    const decryptPassword = decryptData(urlSafeToBase64(encryptedUsername));
+    getUser(decryptUsername).then((account)=>{
+        verifyPassword(decryptPassword, account.salt, account.hash, ()=>{
+            console.log('Creating account');
+            createAccount(account, accountType).then(r => {
+                console.log(r);
+                res.status(201).json("account created");
+            })
+
+        },
+            ()=>{
+            res.status(400).json('invalid account');
+            })
+    })
 
 })
 
