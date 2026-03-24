@@ -286,7 +286,7 @@ app.get("/accounts", (req,res)=>{
 app.get("/transactions", (req,res)=>{
     const{encryptedUsername, encryptedPassword, id} = req.query;
 
-    if(!encryptedUsername || !encryptedPassword){
+    if(!encryptedUsername || !encryptedPassword|| !id){
         return res.status(400).json({error: 'invalid login'});
     }
     const decryptUsername = decryptData(urlSafeToBase64(encryptedUsername));
