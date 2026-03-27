@@ -296,15 +296,28 @@ app.get("/transactions", (req,res)=>{
         verifyPassword(decryptPassword, account.salt, account.hash, ()=>{
             console.log('Transactions:', getTransactions(decryptID));
             res.status(200).json(getTransactions(decryptID));
-        }),()=>{
+        }
+            ,()=>{
             console.log("invalid password");
             res.status(400).json('invalid password');
-        }
+        })
     })
 })
 
 
 app.post("/login", (req,res)=>{
+    const{encryptedUsername, encryptedPassword} = req.body;
+    if(!encryptedUsername || !encryptedPassword){
+        return res.status(400).json({error: 'invalid login'});
+    }
+    const decryptUsername = decryptData(urlSafeToBase64(encryptedUsername));
+    const decryptPassword = decryptData(urlSafeToBase64(encryptedUsername));
+    getUser(decryptUsername,decryptPassword).then((account)=>{
+       createUser().then(result=>{
+           console.log(result);
+           res.status(201).json("login created");
+       })
+    })
 
 })
 
@@ -330,21 +343,63 @@ app.post("/account", (req,res)=>{
             res.status(400).json('invalid account');
             })
     })
+    res.status(401).json("user not found")
 
 })
 
 
 app.post("/deposit",(req,res)=>{
-
+    const{encryptedUsername, encryptedPassword, accountID,amount} = req.body;
+    if(!encryptedUsername || !encryptedPassword){
+        return res.status(400).json({error: 'invalid login'});
+    }
+    const decryptUsername = decryptData(urlSafeToBase64(encryptedUsername));
+    const decryptPassword = decryptData(urlSafeToBase64(encryptedUsername));
+    getUser(decryptUsername).then((account)=>{
+        verifyPassword(decryptPassword,account.salt, account.hash, ()=>{
+                deposit(decryptUsername, accountID, amount).then(r =>{
+                    console.log(r);
+                    res.status(200).json("withdrawal successful");
+                })
+            },
+            res.status(400).json("deposit unsuccessful"))
+    })
+    res.status(401).json("user not found")
 })
 
 
 app.post("/withdraw",(req,res)=>{
-
+    const{encryptedUsername, encryptedPassword, accountID,amount} = req.body;
+    if(!encryptedUsername || !encryptedPassword){
+        return res.status(400).json({error: 'invalid login'});
+    }
+    const decryptUsername = decryptData(urlSafeToBase64(encryptedUsername));
+    const decryptPassword = decryptData(urlSafeToBase64(encryptedUsername));
+    getUser(decryptUsername).then((account)=>{
+        verifyPassword(decryptPassword,account.salt, account.hash, ()=>{
+          withdraw(decryptUsername, accountID, amount).then(r =>{
+              console.log(r);
+              res.status(200).json("withdrawal successful");
+          })
+        },
+            res.status(400).json("withdrawal unsuccessful"))
+    })
+    res.status(401).json("user not found")
 })
 
 
 app.post("/transfer",(req,res)=>{
+    const{encryptedUsername, encryptedPassword, accountID,amount} = req.body;
+    if(!encryptedUsername || !encryptedPassword){
+        return res.status(400).json({error: 'invalid login'});
+    }
+    const decryptUsername = decryptData(urlSafeToBase64(encryptedUsername));
+    const decryptPassword = decryptData(urlSafeToBase64(encryptedUsername));
+    getUser(decryptUsername).then((account)=>{
+        verifyPassword(decryptPassword, account.salt, account.hash, ()=>{
+
+        })
+    })
 
 })
 
