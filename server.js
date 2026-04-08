@@ -23,50 +23,48 @@ const port = config.port;
 //false if it doesn't
 
 
-async function getUser(username){
-    const[result] = await connection.query(`SELECT * FROM logins where username = "${username}"`)
-    if(result.length >0){
+async function getUser(username) {
+    const [result] = await connection.query(`SELECT * FROM logins where username = "${username}"`)
+    if (result.length > 0) {
         return result[0];
-    }
-    else{
+    } else {
         return false;
     }
 }
 
-async function getAccounts(username){
-    if(username.access === 0){
-        const[result] = await connection.query(`SELECT * FROM accounts where ownerID = ${username.id}`)
+async function getAccounts(username) {
+    if (username.access === 0) {
+        const [result] = await connection.query(`SELECT * FROM accounts where ownerID = ${username.id}`)
         return result;
-    }
-    else{
-        const[result] = await connection.query(`SELECT * FROM accounts`)
+    } else {
+        const [result] = await connection.query(`SELECT * FROM accounts`)
         return result;
     }
 }
 
-async function getTransactions(accountID){
-    const[result] = await connection.query(`SELECT * FROM transactions where fromAcc = ${accountID} OR toAcc = ${accountID}`)
+async function getTransactions(accountID) {
+    const [result] = await connection.query(`SELECT * FROM transactions where fromAcc = ${accountID} OR toAcc = ${accountID}`)
     return result;
 }
 
-async function getLargestLogin(){
+async function getLargestLogin() {
     const [results] = await connection.query(`SELECT MAX(id) from logins`);
     return results[0]["MAX(id)"]
 }
 
-async function getLargestAccount(){
+async function getLargestAccount() {
     const [results] = await connection.query(`SELECT MAX(accountID) from accounts`);
     return results[0]["MAX(accountID)"]
 }
 
-async function getLargestTransaction(){
+async function getLargestTransaction() {
     const [results] = await connection.query(`SELECT MAX(transactionID) from transactions`);
     return results[0]["MAX(transactionID)"]
 }
 
 async function createUser(user, password) {
     const salt = crypto.randomBytes(16).toString('hex');
-    let id = await getLargestLogin()+1;
+    let id = await getLargestLogin() + 1;
     crypto.scrypt(password, salt, 64, (err, derivedKey) => {
         if (err) throw err;
 
@@ -79,88 +77,86 @@ async function createUser(user, password) {
 
 }
 
-async function createAccount(user,accountType) {
-    let accountID = await getLargestAccount()+1;
+async function createAccount(user, accountType) {
+    let accountID = await getLargestAccount() + 1;
     connection.query(`Insert into accounts values('${accountID}', 0, '${accountType}', '${user.id}')`);
 }
 
 //boolean
-async function verifyAccess(user,accountID){
-    if(user.access===1){
+async function verifyAccess(user, accountID) {
+    if (user.access === 1) {
         return true;
-    }
-    else{
+    } else {
         const [results] = await connection.query(`SELECT ownerID from accounts where accountID = ${accountID}`);
-        if(results[0].ownerID === user.id){
+        if (results[0].ownerID === user.id) {
             return true;
         }
     }
     return false;
 }
 
-async function verifyBalance(amount,accountID){
-    const[results] = await connection.query(`SELECT balance FROM accounts where accountID = ${accountID}`);
-    if(results[0].balance >= amount){
+async function verifyBalance(amount, accountID) {
+    const [results] = await connection.query(`SELECT balance FROM accounts where accountID = ${accountID}`);
+    if (results[0].balance >= amount) {
         return true;
     }
     return false;
 }
 
-async function transfer(user, fromID, toID, amount){
+async function transfer(user, fromID, toID, amount) {
     let accessFrom = await verifyAccess(user, fromID);
     let accessTo = await verifyAccess(user, toID);
-    if(accessFrom === false || accessTo === false){
+    if (accessFrom === false || accessTo === false) {
         return "no access";
     }
     let fromBalance = await verifyBalance(amount, fromID);
-    if(fromBalance===false){
+    if (fromBalance === false) {
         return "insufficient balance";
     }
     //create transaction
-    let transactionID = await getLargestTransaction()+1;
+    let transactionID = await getLargestTransaction() + 1;
     connection.query(`Insert into transactions values('${transactionID}', ${amount}, '${fromID}', '${toID}')`);
     //update acc
-    const[fromBal] = await connection.query(`SELECT balance from accounts where accountID = ${fromID}`)
-    const[toBal] = await connection.query(`SELECT balance from accounts where accountID = ${toID}`)
+    const [fromBal] = await connection.query(`SELECT balance from accounts where accountID = ${fromID}`)
+    const [toBal] = await connection.query(`SELECT balance from accounts where accountID = ${toID}`)
     connection.query(`UPDATE accounts SET balance= ${fromBal[0].balance - amount}  WHERE accountID = ${fromID}`);
     connection.query(`UPDATE accounts SET balance= ${toBal[0].balance + amount}  WHERE accountID = ${toID}`);
     return "success";
 
 }
 
-async function deposit(user, accountID, amount){
-    if(user.access === 1){
+async function deposit(user, accountID, amount) {
+    if (user.access === 1) {
         //create transaction
-        let transactionID = await getLargestTransaction()+1;
+        let transactionID = await getLargestTransaction() + 1;
         connection.query(`Insert into transactions values('${transactionID}', ${amount}, null, '${accountID}')`);
         //update acc
-        const[toBal] = await connection.query(`SELECT balance from accounts where accountID = ${accountID}`)
+        const [toBal] = await connection.query(`SELECT balance from accounts where accountID = ${accountID}`)
         connection.query(`UPDATE accounts SET balance= ${toBal[0].balance + amount}  WHERE accountID = ${accountID}`);
         return "success";
-    }
-    else{
+    } else {
         return "no access"
     }
 }
 
-async function withdraw(user, accountID, amount){
-    if(user.access === 1){
+async function withdraw(user, accountID, amount) {
+    if (user.access === 1) {
         let fromBalance = await verifyBalance(amount, accountID);
-        if(fromBalance===false){
+        if (fromBalance === false) {
             return "insufficient balance";
         }
         //create transaction
-        let transactionID = await getLargestTransaction()+1;
+        let transactionID = await getLargestTransaction() + 1;
         connection.query(`Insert into transactions values('${transactionID}', ${amount}, '${accountID}', null)`);
         //update acc
-        const[fromBal] = await connection.query(`SELECT balance from accounts where accountID = ${accountID}`)
+        const [fromBal] = await connection.query(`SELECT balance from accounts where accountID = ${accountID}`)
         connection.query(`UPDATE accounts SET balance= ${fromBal[0].balance - amount}  WHERE accountID = ${accountID}`);
         return "success";
-    }
-    else{
+    } else {
         return "no access"
     }
 }
+
 // verifyBalance(21, 31).then((results=>{
 //     console.log(results);
 // }))
@@ -195,10 +191,10 @@ async function withdraw(user, accountID, amount){
 // })
 
 
-
-getTransactions(11).then((results)=>{
+getTransactions(11).then((results) => {
     console.log(results);
 })
+
 function verifyPassword(inputPassword, storedSalt, storedHash, actionOnSuccess, actionOnFail) {
     crypto.scrypt(inputPassword, storedSalt, 64, (err, derivedKey) => {
         if (err) throw err;
@@ -206,7 +202,7 @@ function verifyPassword(inputPassword, storedSalt, storedHash, actionOnSuccess, 
         const inputHash = derivedKey.toString('hex');
 
         // Compare the newly generated hash with the one stored in the database
-        if(storedHash === inputHash) {
+        if (storedHash === inputHash) {
             actionOnSuccess();
         } else
             actionOnFail();
@@ -255,71 +251,69 @@ const urlSafeToBase64 = (urlSafeStr) => {
 };
 
 
-
 app.get('/public_key', (req, res) => {
     res.json(publicKey)
 })
 
-app.get("/accounts", (req,res)=>{
-    const{encryptedUsername, encryptedPassword} = req.query;
+app.get("/accounts", (req, res) => {
+    const {encryptedUsername, encryptedPassword} = req.query;
 
-    if(!encryptedUsername || !encryptedPassword){
+    if (!encryptedUsername || !encryptedPassword) {
         return res.status(400).json({error: 'invalid login'});
     }
     const decryptUsername = decryptData(urlSafeToBase64(encryptedUsername));
     const decryptPassword = decryptData(urlSafeToBase64(encryptedUsername));
 
-    getUser(decryptUsername).then((account)=>{
-        verifyPassword(decryptPassword, account.salt, account.hash, ()=>{
-            console.log('Accounts:', getAccounts(account));
-            res.status(200).json(getAccounts(account));
-        },
-            ()=>{
-            console.log("invalid password");
-            res.status(400).json('invalid password');
-        })
+    getUser(decryptUsername).then((account) => {
+        verifyPassword(decryptPassword, account.salt, account.hash, () => {
+                console.log('Accounts:', getAccounts(account));
+                res.status(200).json(getAccounts(account));
+            },
+            () => {
+                console.log("invalid password");
+                res.status(400).json('invalid password');
+            })
 
     })
 })
 
 
-app.get("/transactions", (req,res)=>{
-    const{encryptedUsername, encryptedPassword, id} = req.query;
+app.get("/transactions", (req, res) => {
+    const {encryptedUsername, encryptedPassword, id} = req.query;
 
-    if(!encryptedUsername || !encryptedPassword|| !id){
+    if (!encryptedUsername || !encryptedPassword || !id) {
         return res.status(400).json({error: 'invalid login'});
     }
     const decryptUsername = decryptData(urlSafeToBase64(encryptedUsername));
     const decryptPassword = decryptData(urlSafeToBase64(encryptedUsername));
-    const decryptID= decryptData(urlSafeToBase64(id));
-    getUser(decryptUsername).then((account)=>{
-        verifyPassword(decryptPassword, account.salt, account.hash, ()=>{
-            console.log('Transactions:', getTransactions(decryptID));
-            res.status(200).json(getTransactions(decryptID));
-        }
-            ,()=>{
-            console.log("invalid password");
-            res.status(400).json('invalid password');
-        })
+    const decryptID = decryptData(urlSafeToBase64(id));
+    getUser(decryptUsername).then((account) => {
+        verifyPassword(decryptPassword, account.salt, account.hash, () => {
+                console.log('Transactions:', getTransactions(decryptID));
+                res.status(200).json(getTransactions(decryptID));
+            }
+            , () => {
+                console.log("invalid password");
+                res.status(400).json('invalid password');
+            })
     })
 })
 
 
-app.post("/login", (req,res)=>{
-    const{encryptedUsername, encryptedPassword} = req.body;
-    if(!encryptedUsername || !encryptedPassword){
+app.post("/login", (req, res) => {
+    const {encryptedUsername, encryptedPassword} = req.body;
+    if (!encryptedUsername || !encryptedPassword) {
         return res.status(400).json({error: 'invalid login'});
     }
     const decryptUsername = decryptData(urlSafeToBase64(encryptedUsername));
     const decryptPassword = decryptData(urlSafeToBase64(encryptedUsername));
-    getUser(decryptUsername).then((account)=>{
-        if(account === false){
-            createUser().then(result=>{
+    getUser(decryptUsername).then((account) => {
+        if (account === false) {
+            createUser().then(result => {
                 console.log(result);
                 res.status(201).json("login created");
             })
-        }
-        else{
+        } else {
             console.log("failed")
             res.status(401).json('invalid login');
         }
@@ -329,25 +323,25 @@ app.post("/login", (req,res)=>{
 })
 
 
-app.post("/account", (req,res)=>{
-    const{encryptedUsername, encryptedPassword,accountType} = req.body;
+app.post("/account", (req, res) => {
+    const {encryptedUsername, encryptedPassword, accountType} = req.body;
 
-    if(!encryptedUsername || !encryptedPassword){
+    if (!encryptedUsername || !encryptedPassword) {
         return res.status(400).json({error: 'invalid login'});
     }
     const decryptUsername = decryptData(urlSafeToBase64(encryptedUsername));
     const decryptPassword = decryptData(urlSafeToBase64(encryptedUsername));
-    getUser(decryptUsername).then((account)=>{
-        verifyPassword(decryptPassword, account.salt, account.hash, ()=>{
-            console.log('Creating account');
-            createAccount(account, accountType).then(r => {
-                console.log(r);
-                res.status(201).json("account created");
-            })
+    getUser(decryptUsername).then((account) => {
+        verifyPassword(decryptPassword, account.salt, account.hash, () => {
+                console.log('Creating account');
+                createAccount(account, accountType).then(r => {
+                    console.log(r);
+                    res.status(201).json("account created");
+                })
 
-        },
-            ()=>{
-            res.status(400).json('invalid account');
+            },
+            () => {
+                res.status(400).json('invalid account');
             })
     })
     res.status(401).json("user not found")
@@ -355,22 +349,22 @@ app.post("/account", (req,res)=>{
 })
 
 
-app.post("/deposit",(req,res)=>{
-    const{encryptedUsername, encryptedPassword, accountID,amount} = req.body;
-    if(!encryptedUsername || !encryptedPassword||!accountID||!amount){
+app.post("/deposit", (req, res) => {
+    const {encryptedUsername, encryptedPassword, accountID, amount} = req.body;
+    if (!encryptedUsername || !encryptedPassword || !accountID || !amount) {
         return res.status(400).json({error: 'invalid login'});
     }
     const decryptUsername = decryptData(urlSafeToBase64(encryptedUsername));
     const decryptPassword = decryptData(urlSafeToBase64(encryptedUsername));
-    getUser(decryptUsername).then((account)=>{
+    getUser(decryptUsername).then((account) => {
 
-            verifyPassword(decryptPassword,account.salt, account.hash, ()=>{
-                deposit(decryptUsername, accountID, amount).then(r =>{
-                    if(r==="success"){
+        verifyPassword(decryptPassword, account.salt, account.hash, () => {
+                deposit(decryptUsername, accountID, amount).then(r => {
+                    if (r === "success") {
                         console.log("success")
                         res.status(200).json("deposit successful");
                     }
-                    if(r==="no access"){
+                    if (r === "no access") {
                         console.log("no access")
                         res.status(200).json("no access");
                     }
@@ -378,69 +372,69 @@ app.post("/deposit",(req,res)=>{
 
             },
             res.status(400).json("wrong password"))
+    })
 })
 
 
-app.post("/withdraw",(req,res)=>{
-    const{encryptedUsername, encryptedPassword, accountID,amount} = req.body;
-    if(!encryptedUsername || !encryptedPassword||!accountID||!amount){
+app.post("/withdraw", (req, res) => {
+    const {encryptedUsername, encryptedPassword, accountID, amount} = req.body;
+    if (!encryptedUsername || !encryptedPassword || !accountID || !amount) {
         return res.status(400).json({error: 'invalid login'});
     }
     const decryptUsername = decryptData(urlSafeToBase64(encryptedUsername));
     const decryptPassword = decryptData(urlSafeToBase64(encryptedUsername));
-    getUser(decryptUsername).then((account)=>{
+    getUser(decryptUsername).then((account) => {
 
-            verifyPassword(decryptPassword,account.salt, account.hash, ()=>{
-                    withdraw(decryptUsername, accountID, amount).then(r =>{
-                       if(r==="insufficient balance"){
-                           console.log("insufficient balance")
-                           res.status(401).json("insufficient balance");
-                       }
-                        if(r==="success"){
-                            console.log("success")
-                            res.status(401).json("withdraw successful");
-                        }
-                        if(r==="no access"){
-                            console.log("no access")
-                            res.status(401).json("no access");
-                        }
-                    })
+        verifyPassword(decryptPassword, account.salt, account.hash, () => {
+            withdraw(decryptUsername, accountID, amount).then(r => {
+                if (r === "insufficient balance") {
+                    console.log("insufficient balance")
+                    res.status(401).json("insufficient balance");
+                }
+                if (r === "success") {
+                    console.log("success")
+                    res.status(401).json("withdraw successful");
+                }
+                if (r === "no access") {
+                    console.log("no access")
+                    res.status(401).json("no access");
+                }
+            })
 
-                },
-                res.status(400).json("wrong password"))
+            res.status(400).json("wrong password");
 
+        })
+    })
 })
 
-
-app.post("/transfer",(req,res)=>{
-    const{encryptedUsername, encryptedPassword, toAccountId, fromAccountId, amount} = req.body;
-    if(!encryptedUsername || !encryptedPassword||!toAccountId||!amount||!fromAccountId){
+app.post("/transfer", (req, res) => {
+    const {encryptedUsername, encryptedPassword, toAccountId, fromAccountId, amount} = req.body;
+    if (!encryptedUsername || !encryptedPassword || !toAccountId || !amount || !fromAccountId) {
         return res.status(400).json({error: 'invalid login'});
     }
     const decryptUsername = decryptData(urlSafeToBase64(encryptedUsername));
     const decryptPassword = decryptData(urlSafeToBase64(encryptedUsername));
-    getUser(decryptUsername).then((account)=>{
-        verifyPassword(decryptPassword,account.salt, account.hash, ()=>{
-                transfer(decryptUsername, fromAccountId,toAccountId, amount).then(r =>{
-                    if(r === "insufficient balance"){
-                        console.log("insufficient balance");
-                        res.status(400).json("insufficient balance");
-                    }
-                    if(r === "no access"){
-                        console.log("no access");
-                        res.status(401).json("no access");
-                    }
-                    if(r==="success"){
-                        res.status(200).json("success");
-                    }
-                })
-                })
+    getUser(decryptUsername).then((account) => {
+        verifyPassword(decryptPassword, account.salt, account.hash, () => {
+            transfer(decryptUsername, fromAccountId, toAccountId, amount).then(r => {
+                if (r === "insufficient balance") {
+                    console.log("insufficient balance");
+                    res.status(400).json("insufficient balance");
+                }
+                if (r === "no access") {
+                    console.log("no access");
+                    res.status(401).json("no access");
+                }
+                if (r === "success") {
+                    res.status(200).json("success");
+                }
+            })
+        })
 
-            },
-            res.status(400).json("transfer unsuccessful"))
- })
+        res.status(400).json("transfer unsuccessful");
+    })
 })
 
-app.listen(port, ()=>{
+app.listen(port, () => {
     console.log(`Listening on port ${port}`);
-})}
+})
