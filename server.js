@@ -262,7 +262,7 @@ app.get("/accounts", (req, res) => {
         return res.status(400).json({error: 'invalid login'});
     }
     const decryptUsername = decryptData(urlSafeToBase64(encryptedUsername));
-    const decryptPassword = decryptData(urlSafeToBase64(encryptedUsername));
+    const decryptPassword = decryptData(urlSafeToBase64(encryptedPassword));
 
     getUser(decryptUsername).then((account) => {
         verifyPassword(decryptPassword, account.salt, account.hash, () => {
@@ -285,7 +285,7 @@ app.get("/transactions", (req, res) => {
         return res.status(400).json({error: 'invalid login'});
     }
     const decryptUsername = decryptData(urlSafeToBase64(encryptedUsername));
-    const decryptPassword = decryptData(urlSafeToBase64(encryptedUsername));
+    const decryptPassword = decryptData(urlSafeToBase64(encryptedPassword));
     const decryptID = decryptData(urlSafeToBase64(id));
     getUser(decryptUsername).then((account) => {
         verifyPassword(decryptPassword, account.salt, account.hash, () => {
@@ -306,7 +306,7 @@ app.post("/login", (req, res) => {
         return res.status(400).json({error: 'invalid login'});
     }
     const decryptUsername = decryptData(urlSafeToBase64(encryptedUsername));
-    const decryptPassword = decryptData(urlSafeToBase64(encryptedUsername));
+    const decryptPassword = decryptData(urlSafeToBase64(encryptedPassword));
     getUser(decryptUsername).then((account) => {
         if (account === false) {
             createUser().then(result => {
@@ -330,7 +330,7 @@ app.post("/account", (req, res) => {
         return res.status(400).json({error: 'invalid login'});
     }
     const decryptUsername = decryptData(urlSafeToBase64(encryptedUsername));
-    const decryptPassword = decryptData(urlSafeToBase64(encryptedUsername));
+    const decryptPassword = decryptData(urlSafeToBase64(encryptedPassword));
     getUser(decryptUsername).then((account) => {
         verifyPassword(decryptPassword, account.salt, account.hash, () => {
                 console.log('Creating account');
@@ -344,7 +344,6 @@ app.post("/account", (req, res) => {
                 res.status(400).json('invalid account');
             })
     })
-    res.status(401).json("user not found")
 
 })
 
@@ -355,7 +354,7 @@ app.post("/deposit", (req, res) => {
         return res.status(400).json({error: 'invalid login'});
     }
     const decryptUsername = decryptData(urlSafeToBase64(encryptedUsername));
-    const decryptPassword = decryptData(urlSafeToBase64(encryptedUsername));
+    const decryptPassword = decryptData(urlSafeToBase64(encryptedPassword));
     getUser(decryptUsername).then((account) => {
 
         verifyPassword(decryptPassword, account.salt, account.hash, () => {
@@ -382,7 +381,7 @@ app.post("/withdraw", (req, res) => {
         return res.status(400).json({error: 'invalid login'});
     }
     const decryptUsername = decryptData(urlSafeToBase64(encryptedUsername));
-    const decryptPassword = decryptData(urlSafeToBase64(encryptedUsername));
+    const decryptPassword = decryptData(urlSafeToBase64(encryptedPassword));
     getUser(decryptUsername).then((account) => {
 
         verifyPassword(decryptPassword, account.salt, account.hash, () => {
@@ -413,7 +412,7 @@ app.post("/transfer", (req, res) => {
         return res.status(400).json({error: 'invalid login'});
     }
     const decryptUsername = decryptData(urlSafeToBase64(encryptedUsername));
-    const decryptPassword = decryptData(urlSafeToBase64(encryptedUsername));
+    const decryptPassword = decryptData(urlSafeToBase64(encryptedPassword));
     getUser(decryptUsername).then((account) => {
         verifyPassword(decryptPassword, account.salt, account.hash, () => {
             transfer(decryptUsername, fromAccountId, toAccountId, amount).then(r => {
