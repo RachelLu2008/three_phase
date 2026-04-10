@@ -263,16 +263,22 @@ app.get("/accounts", (req, res) => {
     }
     const decryptUsername = decryptData(urlSafeToBase64(encryptedUsername));
     const decryptPassword = decryptData(urlSafeToBase64(encryptedPassword));
-
+console.log(decryptPassword);
     getUser(decryptUsername).then((account) => {
-        verifyPassword(decryptPassword, account.salt, account.hash, () => {
-                console.log('Accounts:', getAccounts(account));
-                res.status(200).json(getAccounts(account));
-            },
-            () => {
-                console.log("invalid password");
-                res.status(400).json('invalid password');
-            })
+        if(!account) {
+            console.log("invalid password");
+            res.status(400).json('invalid password');
+        } else {
+            verifyPassword(decryptPassword, account.salt, account.hashed, () => {
+                    console.log('Accounts:', getAccounts(account));
+                    res.status(200).json(getAccounts(account));
+                },
+                () => {
+                    console.log("invalid password");
+                    res.status(400).json('invalid password');
+                })
+        }
+
 
     })
 })
@@ -288,7 +294,7 @@ app.get("/transactions", (req, res) => {
     const decryptPassword = decryptData(urlSafeToBase64(encryptedPassword));
     const decryptID = decryptData(urlSafeToBase64(id));
     getUser(decryptUsername).then((account) => {
-        verifyPassword(decryptPassword, account.salt, account.hash, () => {
+        verifyPassword(decryptPassword, account.salt, account.hashed, () => {
                 console.log('Transactions:', getTransactions(decryptID));
                 res.status(200).json(getTransactions(decryptID));
             }
@@ -332,7 +338,7 @@ app.post("/account", (req, res) => {
     const decryptUsername = decryptData(urlSafeToBase64(encryptedUsername));
     const decryptPassword = decryptData(urlSafeToBase64(encryptedPassword));
     getUser(decryptUsername).then((account) => {
-        verifyPassword(decryptPassword, account.salt, account.hash, () => {
+        verifyPassword(decryptPassword, account.salt, account.hashed, () => {
                 console.log('Creating account');
                 createAccount(account, accountType).then(r => {
                     console.log(r);
@@ -355,9 +361,10 @@ app.post("/deposit", (req, res) => {
     }
     const decryptUsername = decryptData(urlSafeToBase64(encryptedUsername));
     const decryptPassword = decryptData(urlSafeToBase64(encryptedPassword));
+
     getUser(decryptUsername).then((account) => {
 
-        verifyPassword(decryptPassword, account.salt, account.hash, () => {
+        verifyPassword(decryptPassword, account.salt, account.hashed, () => {
                 deposit(decryptUsername, accountID, amount).then(r => {
                     if (r === "success") {
                         console.log("success")
@@ -384,7 +391,7 @@ app.post("/withdraw", (req, res) => {
     const decryptPassword = decryptData(urlSafeToBase64(encryptedPassword));
     getUser(decryptUsername).then((account) => {
 
-        verifyPassword(decryptPassword, account.salt, account.hash, () => {
+        verifyPassword(decryptPassword, account.salt, account.hashed, () => {
             withdraw(decryptUsername, accountID, amount).then(r => {
                 if (r === "insufficient balance") {
                     console.log("insufficient balance")
@@ -414,7 +421,7 @@ app.post("/transfer", (req, res) => {
     const decryptUsername = decryptData(urlSafeToBase64(encryptedUsername));
     const decryptPassword = decryptData(urlSafeToBase64(encryptedPassword));
     getUser(decryptUsername).then((account) => {
-        verifyPassword(decryptPassword, account.salt, account.hash, () => {
+        verifyPassword(decryptPassword, account.salt, account.hashed, () => {
             transfer(decryptUsername, fromAccountId, toAccountId, amount).then(r => {
                 if (r === "insufficient balance") {
                     console.log("insufficient balance");
