@@ -190,6 +190,8 @@ async function withdraw(user, accountID, amount) {
 //     })
 // })
 
+//cat Mouse
+
 
 getTransactions(11).then((results) => {
     console.log(results);
@@ -315,7 +317,7 @@ app.post("/login", (req, res) => {
     const decryptPassword = decryptData(urlSafeToBase64(encryptedPassword));
     getUser(decryptUsername).then((account) => {
         if (account === false) {
-            createUser().then(result => {
+            createUser(decryptUsername,decryptPassword).then(result => {
                 console.log(result);
                 res.status(201).json("login created");
             })
