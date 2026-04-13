@@ -273,7 +273,9 @@ console.log(decryptPassword);
         } else {
             verifyPassword(decryptPassword, account.salt, account.hashed, () => {
                     console.log('Accounts:', getAccounts(account));
-                    res.status(200).json(getAccounts(account));
+                    getAccounts(account).then((account) => {
+                        res.status(200).json(account);
+                    })
                 },
                 () => {
                     console.log("invalid password");
@@ -296,14 +298,29 @@ app.get("/transactions", (req, res) => {
     const decryptPassword = decryptData(urlSafeToBase64(encryptedPassword));
     const decryptID = decryptData(urlSafeToBase64(id));
     getUser(decryptUsername).then((account) => {
-        verifyPassword(decryptPassword, account.salt, account.hashed, () => {
-                console.log('Transactions:', getTransactions(decryptID));
-                res.status(200).json(getTransactions(decryptID));
+        if(!account) {
+            console.log("invalid password");
+            res.status(400).json('invalid password');
+        } else {
+           verifyAccess(account,id).then((result) => {
+               if(result) {
+                   verifyPassword(decryptPassword, account.salt, account.hashed, () => {
+                       console.log('Transactions:', getTransactions(decryptID));
+                       getTransactions(account).then((decryptID) => {
+                           res.status(200).json(decryptID);
+                       })
+                   }, () => {
+                       console.log("invalid password");
+                       res.status(400).json('invalid password');
+                   })
+               }
+               else{
+                   res.status(400).json('invalid access');
+               }
+           })
             }
-            , () => {
-                console.log("invalid password");
-                res.status(400).json('invalid password');
-            })
+
+
     })
 })
 
@@ -316,15 +333,22 @@ app.post("/login", (req, res) => {
     const decryptUsername = decryptData(urlSafeToBase64(encryptedUsername));
     const decryptPassword = decryptData(urlSafeToBase64(encryptedPassword));
     getUser(decryptUsername).then((account) => {
-        if (account === false) {
-            createUser(decryptUsername,decryptPassword).then(result => {
-                console.log(result);
-                res.status(201).json("login created");
-            })
-        } else {
-            console.log("failed")
-            res.status(401).json('invalid login');
-        }
+            if(!account) {
+                console.log("invalid password");
+                res.status(400).json('invalid password');
+            } else {
+                if (account === false) {
+                    createUser(decryptUsername,decryptPassword).then(result => {
+                        console.log(result);
+                        res.status(201).json("login created");
+                    })
+                } else {
+                    console.log("failed")
+                    res.status(401).json('invalid login');
+                }
+            }
+
+
 
     })
 
@@ -340,17 +364,24 @@ app.post("/account", (req, res) => {
     const decryptUsername = decryptData(urlSafeToBase64(encryptedUsername));
     const decryptPassword = decryptData(urlSafeToBase64(encryptedPassword));
     getUser(decryptUsername).then((account) => {
-        verifyPassword(decryptPassword, account.salt, account.hashed, () => {
-                console.log('Creating account');
-                createAccount(account, accountType).then(r => {
-                    console.log(r);
-                    res.status(201).json("account created");
-                })
+        if(!account) {
+            console.log("invalid password");
+            res.status(400).json('invalid password');
+        } else {
+            verifyPassword(decryptPassword, account.salt, account.hashed, () => {
+                    console.log('Creating account');
+                    createAccount(account, accountType).then(r => {
+                        console.log(r);
+                        res.status(201).json("account created");
+                    })
 
-            },
-            () => {
-                res.status(400).json('invalid account');
-            })
+                },
+                () => {
+                    res.status(400).json('invalid account');
+                })
+        }
+
+
     })
 
 })
@@ -365,9 +396,11 @@ app.post("/deposit", (req, res) => {
     const decryptPassword = decryptData(urlSafeToBase64(encryptedPassword));
 
     getUser(decryptUsername).then((account) => {
-
-        verifyPassword(decryptPassword, account.salt, account.hashed, () => {
-                deposit(decryptUsername, accountID, amount).then(r => {
+        if(!account) {
+            console.log("invalid password");
+            res.status(400).json('invalid password');
+        } else {verifyPassword(decryptPassword, account.salt, account.hashed, () => {
+            deposit(decryptUsername, accountID, amount).then(r => {
                     if (r === "success") {
                         console.log("success")
                         res.status(200).json("deposit successful");
@@ -376,10 +409,14 @@ app.post("/deposit", (req, res) => {
                         console.log("no access")
                         res.status(200).json("no access");
                     }
+                },
+                () => {
+                    res.status(400).json('invalid account');
                 })
 
-            },
-            res.status(400).json("wrong password"))
+        })}
+
+
     })
 })
 
@@ -392,26 +429,32 @@ app.post("/withdraw", (req, res) => {
     const decryptUsername = decryptData(urlSafeToBase64(encryptedUsername));
     const decryptPassword = decryptData(urlSafeToBase64(encryptedPassword));
     getUser(decryptUsername).then((account) => {
+        if(!account) {
+            console.log("invalid password");
+            res.status(400).json('invalid password');
+        } else {
+            verifyPassword(decryptPassword, account.salt, account.hashed, () => {
+                withdraw(decryptUsername, accountID, amount).then(r => {
+                    if (r === "insufficient balance") {
+                        console.log("insufficient balance")
+                        res.status(401).json("insufficient balance");
+                    }
+                    if (r === "success") {
+                        console.log("success")
+                        res.status(401).json("withdraw successful");
+                    }
+                    if (r === "no access") {
+                        console.log("no access")
+                        res.status(401).json("no access");
+                    }
+                })
 
-        verifyPassword(decryptPassword, account.salt, account.hashed, () => {
-            withdraw(decryptUsername, accountID, amount).then(r => {
-                if (r === "insufficient balance") {
-                    console.log("insufficient balance")
-                    res.status(401).json("insufficient balance");
-                }
-                if (r === "success") {
-                    console.log("success")
-                    res.status(401).json("withdraw successful");
-                }
-                if (r === "no access") {
-                    console.log("no access")
-                    res.status(401).json("no access");
-                }
+
+            }, () => {
+                res.status(400).json('invalid account');
             })
+        }
 
-            res.status(400).json("wrong password");
-
-        })
     })
 })
 
@@ -423,23 +466,31 @@ app.post("/transfer", (req, res) => {
     const decryptUsername = decryptData(urlSafeToBase64(encryptedUsername));
     const decryptPassword = decryptData(urlSafeToBase64(encryptedPassword));
     getUser(decryptUsername).then((account) => {
-        verifyPassword(decryptPassword, account.salt, account.hashed, () => {
-            transfer(decryptUsername, fromAccountId, toAccountId, amount).then(r => {
-                if (r === "insufficient balance") {
-                    console.log("insufficient balance");
-                    res.status(400).json("insufficient balance");
-                }
-                if (r === "no access") {
-                    console.log("no access");
-                    res.status(401).json("no access");
-                }
-                if (r === "success") {
-                    res.status(200).json("success");
-                }
+        if(!account) {
+            console.log("invalid password");
+            res.status(400).json('invalid password');
+        } else {
+            verifyPassword(decryptPassword, account.salt, account.hashed, () => {
+                transfer(decryptUsername, fromAccountId, toAccountId, amount).then(r => {
+                        if (r === "insufficient balance") {
+                            console.log("insufficient balance");
+                            res.status(400).json("insufficient balance");
+                        }
+                        if (r === "no access") {
+                            console.log("no access");
+                            res.status(401).json("no access");
+                        }
+                        if (r === "success") {
+                            res.status(200).json("success");
+                        }
+                    },
+                    () => {
+                        res.status(400).json('invalid account');
+                    })
             })
-        })
+        }
 
-        res.status(400).json("transfer unsuccessful");
+
     })
 })
 
