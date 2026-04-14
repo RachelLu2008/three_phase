@@ -272,9 +272,10 @@ console.log(decryptPassword);
             res.status(400).json('invalid password');
         } else {
             verifyPassword(decryptPassword, account.salt, account.hashed, () => {
-                    console.log('Accounts:', getAccounts(account));
-                    getAccounts(account).then((account) => {
-                        res.status(200).json(account);
+
+                    getAccounts(account).then((accountList) => {
+                        console.log('Accounts:', accountList);
+                        res.status(200).json(accountList);
                     })
                 },
                 () => {
@@ -296,7 +297,7 @@ app.get("/transactions", (req, res) => {
     }
     const decryptUsername = decryptData(urlSafeToBase64(encryptedUsername));
     const decryptPassword = decryptData(urlSafeToBase64(encryptedPassword));
-    const decryptID = decryptData(urlSafeToBase64(id));
+    const decryptID = id;
     getUser(decryptUsername).then((account) => {
         if(!account) {
             console.log("invalid password");
@@ -305,9 +306,8 @@ app.get("/transactions", (req, res) => {
            verifyAccess(account,id).then((result) => {
                if(result) {
                    verifyPassword(decryptPassword, account.salt, account.hashed, () => {
-                       console.log('Transactions:', getTransactions(decryptID));
-                       getTransactions(account).then((decryptID) => {
-                           res.status(200).json(decryptID);
+                       getTransactions(decryptID).then((transactions) => {
+                           res.status(200).json(transactions);
                        })
                    }, () => {
                        console.log("invalid password");
